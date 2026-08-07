@@ -1,0 +1,61 @@
+# ─── AYO AI — Python Dependencies ───────────────────────────────────────────
+
+# Voice I/O
+SpeechRecognition>=3.10.0
+pyaudio>=0.2.14
+faster-whisper>=1.0.3
+pyttsx3>=2.90
+
+# Wake word & voice biometrics
+fuzzywuzzy>=0.18.0
+python-Levenshtein>=0.25.0
+resemblyzer>=0.1.4
+numpy>=1.26.0
+librosa>=0.10.2
+sounddevice>=0.4.7
+soundfile>=0.12.1
+
+# AI Brain (Ollama)
+ollama>=0.3.3
+
+# System control
+pyautogui>=0.9.54
+pygetwindow>=0.0.9
+psutil>=6.0.0
+pywin32>=308
+keyboard>=0.13.5
+
+# Phone control (Android ADB)
+ppadb>=0.3.0
+
+# Document creation
+python-pptx>=1.0.2
+reportlab>=4.2.5
+Pillow>=10.4.0
+matplotlib>=3.9.2
+
+# Web research
+duckduckgo-search>=6.3.7
+beautifulsoup4>=4.12.3
+requests>=2.32.3
+lxml>=5.3.0
+
+# Backend API
+flask>=3.0.3
+flask-socketio>=5.3.7
+flask-cors>=5.0.0
+eventlet>=0.37.0
+
+# Database & memory
+# sqlite3 is built-in to Python
+
+# System tray
+pystray>=0.19.5
+
+# Utilities
+python-dotenv>=1.0.1
+colorama>=0.4.6
+rich>=13.8.1
+
+# PDF metadata
+pypdf>=5.1.0

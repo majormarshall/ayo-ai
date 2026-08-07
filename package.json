@@ -1,0 +1,44 @@
+{
+  "name": "ayo-ai",
+  "version": "1.0.0",
+  "description": "Ayo AI — Your Personal AI Operating System",
+  "main": "frontend/electron/main.js",
+  "scripts": {
+    "start":     "electron .",
+    "dev":       "electron . --dev",
+    "build":     "electron-builder",
+    "install-py": "pip install -r requirements.txt"
+  },
+  "build": {
+    "appId": "com.majormarshall.ayo-ai",
+    "productName": "Ayo AI",
+    "win": {
+      "icon": "frontend/src/assets/ayo-icon.ico",
+      "target": ["nsis", "portable"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "files": [
+      "frontend/**/*",
+      "backend/**/*",
+      "data/**/*",
+      "main.py",
+      "requirements.txt"
+    ],
+    "extraResources": [
+      { "from": ".", "to": ".", "filter": ["main.py", "requirements.txt", "backend", "data"] }
+    ]
+  },
+  "keywords": ["ai", "voice", "assistant", "ollama", "ayo"],
+  "author": "Major Marshall",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.7.5"
+  }
+}

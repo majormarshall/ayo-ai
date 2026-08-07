@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ayo AI — Personal AI Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ── Custom Title Bar ──────────────────────────────────────────────────── -->
+<div class="titlebar" id="titlebar">
+  <div class="titlebar-left">
+    <div class="titlebar-logo">
+      <div class="logo-orb"></div>
+      <span class="titlebar-name">Ayo AI</span>
+    </div>
+    <div class="status-badge" id="statusBadge">
+      <span class="status-dot"></span>
+      <span id="statusText">Connecting…</span>
+    </div>
+  </div>
+  <div class="titlebar-drag"></div>
+  <div class="titlebar-controls">
+    <button class="tbar-btn" id="btnMin" title="Minimise">─</button>
+    <button class="tbar-btn" id="btnMax" title="Maximise">□</button>
+    <button class="tbar-btn tbar-close" id="btnClose" title="Hide to Tray">✕</button>
+  </div>
+</div>
+
+<!-- ── App Layout ─────────────────────────────────────────────────────────── -->
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+      <button class="nav-btn active" data-page="chat"     title="Chat">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+        <span>Chat</span>
+      </button>
+      <button class="nav-btn" data-page="voices"   title="Voice Profiles">
+        <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        <span>Voices</span>
+      </button>
+      <button class="nav-btn" data-page="phone"    title="Phone">
+        <svg viewBox="0 0 24 24"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+        <span>Phone</span>
+      </button>
+      <button class="nav-btn" data-page="docs"     title="Documents">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+        <span>Docs</span>
+      </button>
+      <button class="nav-btn" data-page="settings" title="Settings">
+        <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+        <span>Settings</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="model-badge">
+        <div class="model-dot"></div>
+        <span id="modelName">Ollama</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+
+    <!-- ═══ CHAT PAGE ═══════════════════════════════════════════════════════ -->
+    <section class="page active" id="page-chat">
+      <div class="page-header">
+        <h1>Chat with Ayo</h1>
+        <p class="page-sub">Say <em>"Hey Ayo"</em> or type below</p>
+      </div>
+
+      <!-- Voice Orb -->
+      <div class="orb-container">
+        <div class="orb" id="voiceOrb">
+          <div class="orb-ring r1"></div>
+          <div class="orb-ring r2"></div>
+          <div class="orb-ring r3"></div>
+          <div class="orb-core">
+            <svg viewBox="0 0 24 24" fill="white" width="36" height="36">
+              <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+            </svg>
+          </div>
+        </div>
+        <div class="orb-label" id="orbLabel">Listening for "Ayo"…</div>
+      </div>
+
+      <!-- Conversation -->
+      <div class="chat-container" id="chatContainer">
+        <div class="chat-messages" id="chatMessages">
+          <div class="message ayo-msg">
+            <div class="msg-avatar">A</div>
+            <div class="msg-bubble">
+              <p>Good day! I'm <strong>Ayo</strong>, your personal AI assistant. I'm running fully offline on your machine. Say <em>"Hey Ayo"</em> or type a command below to get started.</p>
+              <span class="msg-time">Just now</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Bar -->
+      <div class="input-bar">
+        <div class="input-wrap">
+          <textarea id="textInput" placeholder='Type a command or question…' rows="1"></textarea>
+          <button class="send-btn" id="sendBtn" title="Send">
+            <svg viewBox="0 0 24 24" fill="white" width="20" height="20">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+          </button>
+        </div>
+        <div class="quick-actions">
+          <button class="qa-btn" data-cmd="Open Chrome">🌐 Chrome</button>
+          <button class="qa-btn" data-cmd="Take a screenshot">📸 Screenshot</button>
+          <button class="qa-btn" data-cmd="What's the weather today?">🌤️ Weather</button>
+          <button class="qa-btn" data-cmd="Search for today's news in Nigeria">📰 News</button>
+          <button class="qa-btn" data-cmd="Run ipconfig in the command prompt">💻 IPConfig</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ VOICE PROFILES PAGE ══════════════════════════════════════════════ -->
+    <section class="page" id="page-voices">
+      <div class="page-header">
+        <h1>Voice Profiles</h1>
+        <p class="page-sub">Only enrolled voices can control Ayo</p>
+      </div>
+      <div class="card-grid">
+        <div class="card enroll-card">
+          <div class="card-icon">🎙️</div>
+          <h3>Enroll New Voice</h3>
+          <p>Register a person so Ayo responds to them.</p>
+          <input class="input-field" id="enrollName" placeholder="Enter person's name…" />
+          <button class="btn-primary" id="enrollBtn">Start Enrollment</button>
+          <div class="enroll-progress" id="enrollProgress" style="display:none">
+            <div class="progress-steps" id="progressSteps"></div>
+            <p id="enrollInstruction">Say: <em>"Hey Ayo, I am ready to assist you."</em></p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon">👥</div>
+          <h3>Enrolled Users</h3>
+          <div class="user-list" id="userList">
+            <div class="loading-text">Loading…</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ PHONE PAGE ════════════════════════════════════════════════════════ -->
+    <section class="page" id="page-phone">
+      <div class="page-header">
+        <h1>Android Phone</h1>
+        <p class="page-sub">Control your phone over Wi-Fi (ADB)</p>
+      </div>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">📡</div>
+          <h3>Connect Phone</h3>
+          <p>Enter your phone's Wi-Fi IP address to connect.</p>
+          <input class="input-field" id="phoneIp" placeholder="192.168.1.xxx" />
+          <button class="btn-primary" id="connectPhoneBtn">Connect</button>
+          <div class="phone-status" id="phoneStatusCard">
+            <div class="status-row"><span>Status</span><span id="phoneConnected" class="badge badge-off">Offline</span></div>
+            <div class="status-row"><span>Battery</span><span id="phoneBattery">—</span></div>
+            <div class="status-row"><span>IP</span><span id="phoneIpDisplay">—</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon">🎮</div>
+          <h3>Quick Controls</h3>
+          <div class="phone-controls">
+            <button class="ctrl-btn" data-action="home">🏠 Home</button>
+            <button class="ctrl-btn" data-action="back">⬅ Back</button>
+            <button class="ctrl-btn" data-action="screenshot">📸 Screenshot</button>
+            <button class="ctrl-btn" data-action="lock">🔒 Lock</button>
+            <button class="ctrl-btn" data-action="vol_up">🔊 Vol Up</button>
+            <button class="ctrl-btn" data-action="vol_down">🔈 Vol Down</button>
+            <button class="ctrl-btn" data-action="mute">🔇 Mute</button>
+            <button class="ctrl-btn" data-action="battery">🔋 Battery</button>
+          </div>
+        </div>
+      </div>
+      <div class="setup-guide card">
+        <h3>⚙️ One-Time Setup</h3>
+        <ol>
+          <li>On your Android phone: <strong>Settings → About Phone</strong>, tap <em>Build Number</em> 7 times.</li>
+          <li>Go to <strong>Settings → Developer Options</strong> → enable <em>USB Debugging</em>.</li>
+          <li>Connect your phone via USB to your PC <strong>once</strong>.</li>
+          <li>Open Command Prompt and run: <code>adb tcpip 5555</code></li>
+          <li>Disconnect the USB cable.</li>
+          <li>Find your phone's IP in <strong>Settings → Wi-Fi → (your network)</strong>.</li>
+          <li>Enter it above and click <strong>Connect</strong>.</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ═══ DOCUMENTS PAGE ═══════════════════════════════════════════════════ -->
+    <section class="page" id="page-docs">
+      <div class="page-header">
+        <h1>Documents</h1>
+        <p class="page-sub">Create PDFs, PowerPoints, and code from voice</p>
+      </div>
+      <div class="doc-actions card-grid">
+        <div class="card">
+          <div class="card-icon">📄</div>
+          <h3>Create PDF</h3>
+          <input class="input-field" id="pdfTopic" placeholder="Topic or title…" />
+          <textarea class="input-field" id="pdfContent" placeholder="Content (or let Ayo generate it from the topic)" rows="4"></textarea>
+          <button class="btn-primary" id="createPdfBtn">Generate PDF</button>
+        </div>
+        <div class="card">
+          <div class="card-icon">📊</div>
+          <h3>Create PowerPoint</h3>
+          <input class="input-field" id="pptTopic" placeholder="Presentation topic…" />
+          <textarea class="input-field" id="pptContent" placeholder="Key points (one per line)" rows="4"></textarea>
+          <button class="btn-primary" id="createPptBtn">Generate PPTX</button>
+        </div>
+        <div class="card">
+          <div class="card-icon">💻</div>
+          <h3>Vibe Code</h3>
+          <input class="input-field" id="codeDesc" placeholder="Describe what to build…" />
+          <select class="input-field" id="codeLang">
+            <option value="html">HTML / CSS / JS</option>
+            <option value="python">Python</option>
+            <option value="javascript">JavaScript</option>
+          </select>
+          <button class="btn-primary" id="vibeCodeBtn">Generate &amp; Preview</button>
+        </div>
+      </div>
+      <div class="card doc-list-card">
+        <h3>📁 Recent Documents</h3>
+        <div id="docList" class="doc-list">Loading…</div>
+      </div>
+    </section>
+
+    <!-- ═══ SETTINGS PAGE ════════════════════════════════════════════════════ -->
+    <section class="page" id="page-settings">
+      <div class="page-header">
+        <h1>Settings</h1>
+        <p class="page-sub">Personalise your Ayo AI experience</p>
+      </div>
+      <div class="settings-grid">
+        <div class="card">
+          <h3>🤖 AI Model</h3>
+          <label>Ollama Model</label>
+          <select class="input-field" id="ollamaModel">
+            <option value="llama3.2">llama3.2 (Recommended)</option>
+            <option value="mistral">mistral</option>
+            <option value="phi3">phi3</option>
+            <option value="llama3">llama3</option>
+            <option value="gemma2">gemma2</option>
+          </select>
+        </div>
+        <div class="card">
+          <h3>🎙️ Voice</h3>
+          <label>Wake Sensitivity</label>
+          <input type="range" id="wakeSensitivity" min="50" max="95" value="70" class="slider" />
+          <div class="slider-labels"><span>Loose</span><span>Strict</span></div>
+          <label>Speaker Threshold</label>
+          <input type="range" id="speakerThreshold" min="60" max="95" value="82" class="slider" />
+          <div class="slider-labels"><span>Permissive</span><span>Strict</span></div>
+        </div>
+        <div class="card">
+          <h3>⌨️ Hotkeys</h3>
+          <div class="hotkey-row"><span>Show/Hide Dashboard</span><kbd>Ctrl+Shift+A</kbd></div>
+          <div class="hotkey-row"><span>Quick Command</span><kbd>Ctrl+Space</kbd></div>
+        </div>
+        <div class="card">
+          <h3>ℹ️ About Ayo AI</h3>
+          <p>Version 1.0.0</p>
+          <p>By <strong>Major Marshall</strong></p>
+          <p>100% offline — powered by Ollama + Whisper</p>
+          <a href="#" id="openGithub" class="btn-secondary">View on GitHub</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
