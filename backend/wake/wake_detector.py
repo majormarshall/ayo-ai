@@ -4,104 +4,107 @@ AYO AI — Wake Word Detector
 Continuously listens in the background for one of Ayo's wake phrases:
   "hey ayo" | "hello ayo" | "hi ayo" | "ayo"
 
-Uses SpeechRecognition (Google offline, then system) with fuzzy matching
-so natural pronunciation variations still trigger correctly.
-Calls `callback(audio_segment)` with the raw audio when triggered.
+Uses sounddevice + faster-whisper for fully offline wake word detection.
+No PyAudio required — works on Python 3.14+.
+Calls `callback(audio_segment)` when triggered.
 """
 
 import logging
 import threading
+import time
 import numpy as np
-import speech_recognition as sr
+import sounddevice as sd
 from fuzzywuzzy import fuzz
+from faster_whisper import WhisperModel
 
 log = logging.getLogger("ayo.wake")
 
-# ── Wake phrase variants ───────────────────────────────────────────────────────
-WAKE_PHRASES = ["hey ayo", "hello ayo", "hi ayo", "ayo"]
-MATCH_THRESHOLD = 70   # Fuzzy match score (0-100). Lower = more sensitive.
+# ── Config ────────────────────────────────────────────────────────────────────
+SAMPLE_RATE    = 16_000
+CHUNK_SECS     = 2.0        # Record in 2-second chunks for wake detection
+ENERGY_THRESH  = 200        # Skip very quiet chunks (silence)
+WAKE_PHRASES   = ["hey ayo", "hello ayo", "hi ayo", "ayo"]
+MATCH_THRESHOLD = 70        # Fuzzy score 0-100; lower = more sensitive
 
 
 class WakeDetector:
     def __init__(self, callback):
         """
-        callback: callable(audio_segment: AudioData)
-            Called when a wake word is confirmed.
+        callback: callable(audio_segment: np.ndarray)
+            Called with float32 audio array when wake word detected.
         """
-        self.callback = callback
-        self._running = False
-        self._recogniser = sr.Recognizer()
-        self._recogniser.dynamic_energy_threshold = True
-        self._recogniser.pause_threshold = 0.6
-        self._recogniser.energy_threshold = 300
-        self._mic = sr.Microphone(sample_rate=16000)
+        self.callback  = callback
+        self._running  = False
+        self._on_cooldown = False
 
-        # Calibrate for ambient noise once
-        log.info("🎙️ Calibrating microphone for ambient noise…")
-        with self._mic as source:
-            self._recogniser.adjust_for_ambient_noise(source, duration=1.5)
-        log.info(f"✅ Energy threshold set to {self._recogniser.energy_threshold:.0f}")
+        log.info("🔊 Loading tiny Whisper model for wake detection…")
+        self._whisper = WhisperModel("tiny", device="cpu", compute_type="int8")
+        log.info("✅ Wake detector ready")
 
     def start(self):
-        """Start listening in the current thread (blocking). Call from a daemon thread."""
+        """Blocking loop — call from a daemon thread."""
         self._running = True
-        log.info("👂 Wake detector active — listening for 'Ayo'…")
+        log.info("👂 Wake detector active — listening for 'Hey Ayo'…")
 
-        def _on_audio(recogniser, audio):
-            self._process(recogniser, audio)
+        chunk_size = int(SAMPLE_RATE * CHUNK_SECS)
 
-        stop_fn = self._recogniser.listen_in_background(self._mic, _on_audio,
-                                                         phrase_time_limit=4)
-        # Keep the thread alive
-        try:
+        with sd.InputStream(samplerate=SAMPLE_RATE, channels=1,
+                            dtype="float32", blocksize=chunk_size) as stream:
             while self._running:
-                threading.Event().wait(1)
-        except KeyboardInterrupt:
-            pass
-        finally:
-            stop_fn(wait_for_stop=False)
+                chunk, _ = stream.read(chunk_size)
+                audio = chunk.flatten()
+
+                # Skip silent chunks
+                rms = float(np.sqrt(np.mean(audio ** 2)))
+                if rms < (ENERGY_THRESH / 32768.0):
+                    continue
+
+                # Skip if already processing a command
+                if self._on_cooldown:
+                    continue
+
+                # Transcribe the short chunk
+                text = self._transcribe_chunk(audio)
+                if text and self._is_wake_phrase(text):
+                    log.info(f"🔔 Wake phrase detected: '{text}'")
+                    self._on_cooldown = True
+                    threading.Thread(
+                        target=self._fire_callback,
+                        args=(audio,),
+                        daemon=True
+                    ).start()
 
     def stop(self):
         self._running = False
 
+    def resume(self):
+        """Call after a command is processed to re-enable detection."""
+        self._on_cooldown = False
+
     # ── Internal ──────────────────────────────────────────────────────────────
 
-    def _process(self, recogniser, audio):
-        """Attempt to recognise speech and check for wake phrase."""
+    def _fire_callback(self, audio: np.ndarray):
         try:
-            # Try offline Sphinx first, fall back to Google if available
-            try:
-                text = recogniser.recognize_sphinx(audio).lower().strip()
-            except Exception:
-                try:
-                    text = recogniser.recognize_google(audio).lower().strip()
-                except Exception:
-                    return
+            self.callback(audio)
+        finally:
+            time.sleep(1.5)     # brief cooldown before listening again
+            self._on_cooldown = False
 
-            log.debug(f"Heard: '{text}'")
-
-            if self._is_wake_phrase(text):
-                log.info(f"🔔 Wake phrase matched in: '{text}'")
-                # Pass raw audio bytes as numpy array for speaker verifier
-                raw = np.frombuffer(audio.get_raw_data(convert_rate=16000,
-                                                        convert_width=2),
-                                    dtype=np.int16).astype(np.float32) / 32768.0
-                # Run callback in a new thread so we don't block the listener
-                threading.Thread(target=self.callback, args=(raw,), daemon=True).start()
-
+    def _transcribe_chunk(self, audio: np.ndarray) -> str:
+        try:
+            segments, _ = self._whisper.transcribe(
+                audio, language="en", beam_size=1, vad_filter=True
+            )
+            return " ".join(s.text.strip() for s in segments).lower().strip()
         except Exception as e:
-            log.debug(f"Wake detection error: {e}")
+            log.debug(f"Transcribe error: {e}")
+            return ""
 
     @staticmethod
     def _is_wake_phrase(text: str) -> bool:
-        """Fuzzy-match heard text against all wake phrases."""
         for phrase in WAKE_PHRASES:
-            # Direct substring
             if phrase in text:
                 return True
-            # Fuzzy match (handles slight mispronunciation)
-            score = fuzz.partial_ratio(phrase, text)
-            if score >= MATCH_THRESHOLD:
-                log.debug(f"Fuzzy match: '{phrase}' ↔ '{text}' = {score}")
+            if fuzz.partial_ratio(phrase, text) >= MATCH_THRESHOLD:
                 return True
         return False

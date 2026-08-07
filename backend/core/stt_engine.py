@@ -3,16 +3,12 @@ AYO AI — Speech-to-Text Engine (Whisper, fully local)
 ======================================================
 Records audio from the microphone, detects silence, and transcribes
 using faster-whisper running entirely on-device.
+Uses sounddevice for audio capture (no PyAudio needed).
 """
 
-import io
-import wave
 import logging
-import threading
-import queue
 import numpy as np
 import sounddevice as sd
-import soundfile as sf
 from faster_whisper import WhisperModel
 
 log = logging.getLogger("ayo.stt")
