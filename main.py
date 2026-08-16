@@ -80,22 +80,32 @@ def start_wake_listener():
 
 
 def main():
+    no_enroll = "--no-enroll" in sys.argv
     log.info("🚀 Starting Ayo AI…")
 
-    # First-run: enroll owner if no profiles exist
-    if verifier.enrolled_count() == 0:
+    # First-run: enroll owner if no profiles exist (skip with --no-enroll flag)
+    if not no_enroll and verifier.enrolled_count() == 0:
         log.info("👤 No voice profiles found — running first-time enrollment…")
-        enroller.enroll_interactive(name="Marshall")
+        log.info("   (Run with --no-enroll to skip voice setup for testing)")
+        try:
+            enroller.enroll_interactive(name="Marshall")
+        except Exception as e:
+            log.warning(f"Voice enrollment skipped: {e}")
 
     # Start wake-word listener in background thread
-    t = threading.Thread(target=start_wake_listener, daemon=True)
-    t.start()
+    try:
+        t = threading.Thread(target=start_wake_listener, daemon=True)
+        t.start()
+        log.info("🎙️ Wake word listener started — say 'Hey Ayo'")
+    except Exception as e:
+        log.warning(f"Wake word listener failed to start: {e}")
 
     # Start Flask/SocketIO API server (used by Electron dashboard)
     app = create_app(brain=brain, memory=memory, tts=tts,
                      verifier=verifier, enroller=enroller)
     log.info("🌐 API server starting on http://localhost:5050")
-    socketio.run(app, host="127.0.0.1", port=5050, debug=False)
+    log.info("📊 Open the Electron dashboard: npm start")
+    socketio.run(app, host="127.0.0.1", port=5050, debug=False, log_output=False)
 
 
 if __name__ == "__main__":
