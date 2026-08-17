@@ -181,6 +181,18 @@ function setupChat() {
     btn.addEventListener("click", () => sendCommand(btn.dataset.cmd));
   });
 
+  // Clear history button
+  document.getElementById("clearHistoryBtn")?.addEventListener("click", async () => {
+    if (!confirm("Clear all chat history?")) return;
+    document.getElementById("chatMessages").innerHTML = `
+      <div class="message ayo-msg">
+        <div class="msg-avatar">A</div>
+        <div class="msg-bubble"><p>Chat cleared. How can I help you?</p><span class="msg-time">Just now</span></div>
+      </div>`;
+    await fetch(`${apiBase}/api/history`, { method: "DELETE" }).catch(() => {});
+    toast("Chat history cleared.");
+  });
+
   // Voice orb click = activate listening
   document.getElementById("voiceOrb").addEventListener("click", () => {
     toast("Say your command now…");
@@ -257,6 +269,9 @@ function showOrbLabel(text) {
 
 // ── Voice Profiles ────────────────────────────────────────────────────────────
 
+let enrollSession = null;
+let mediaRecorder  = null;
+
 function setupVoicePage() {
   document.getElementById("enrollBtn").addEventListener("click", startEnrollment);
 }
@@ -275,7 +290,7 @@ async function loadUsers() {
     list.innerHTML = users.map(u => `
       <div class="user-item">
         <div class="user-info">
-          <span class="user-name">👤 ${u.name}</span>
+          <span class="user-name">&#x1F464; ${u.name}</span>
           <span class="user-samples">${u.samples} voice samples</span>
         </div>
         <button class="del-btn" data-name="${u.name}">Revoke</button>
@@ -299,9 +314,91 @@ async function startEnrollment() {
   const name = document.getElementById("enrollName").value.trim();
   if (!name) { toast("Please enter a name first."); return; }
 
-  toast(`Starting enrollment for ${name}…`);
-  await sendCommand(`Ayo, register this voice as ${name}`);
-  setTimeout(loadUsers, 3000);
+  // Start enrollment session on backend
+  const res = await fetch(`${apiBase}/api/enroll/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  const data = await res.json();
+  if (data.error) { toast(data.error); return; }
+
+  enrollSession = { name, required: data.required, done: 0 };
+
+  // Show progress UI
+  const progress = document.getElementById("enrollProgress");
+  const steps    = document.getElementById("progressSteps");
+  progress.style.display = "block";
+  steps.innerHTML = Array.from({ length: data.required }, (_, i) =>
+    `<div class="step" id="step-${i}"></div>`
+  ).join("");
+
+  document.getElementById("enrollBtn").textContent = "Recording...";
+  document.getElementById("enrollBtn").disabled = true;
+
+  await recordNextSample();
+}
+
+async function recordNextSample() {
+  if (!enrollSession) return;
+  const { name, required, done } = enrollSession;
+
+  document.getElementById("enrollInstruction").innerHTML =
+    `Sample <strong>${done + 1}</strong> of <strong>${required}</strong> — Say: <em>"Hey Ayo, I am ready to assist you."</em>`;
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const chunks = [];
+    mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+
+    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+
+      // Convert to base64
+      const blob   = new Blob(chunks, { type: "audio/webm" });
+      const buf    = await blob.arrayBuffer();
+      const b64    = btoa(String.fromCharCode(...new Uint8Array(buf)));
+
+      // Send to backend
+      const res = await fetch(`${apiBase}/api/enroll/sample`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audio_b64: b64 }),
+      });
+      const result = await res.json();
+
+      // Update step indicator
+      const stepEl = document.getElementById(`step-${done}`);
+      if (stepEl) stepEl.classList.add("done");
+      enrollSession.done++;
+
+      if (result.done || enrollSession.done >= required) {
+        // Enrollment complete
+        document.getElementById("enrollProgress").style.display = "none";
+        document.getElementById("enrollInstruction").innerHTML = "";
+        document.getElementById("enrollBtn").textContent = "Start Enrollment";
+        document.getElementById("enrollBtn").disabled = false;
+        document.getElementById("enrollName").value = "";
+        enrollSession = null;
+        toast(`${name} enrolled successfully!`);
+        loadUsers();
+      } else {
+        // Next sample
+        setTimeout(recordNextSample, 600);
+      }
+    };
+
+    // Record for 3 seconds
+    mediaRecorder.start();
+    setTimeout(() => mediaRecorder.stop(), 3000);
+
+  } catch (err) {
+    toast(`Microphone error: ${err.message}`);
+    document.getElementById("enrollBtn").textContent = "Start Enrollment";
+    document.getElementById("enrollBtn").disabled = false;
+    enrollSession = null;
+  }
 }
 
 // ── Phone ─────────────────────────────────────────────────────────────────────

@@ -118,16 +118,80 @@ def create_app(brain=None, memory=None, tts=None,
             return jsonify({"success": True, "message": f"{name} removed."})
         return jsonify({"success": False}), 404
 
+    @app.post("/api/enroll/start")
+    def enroll_start():
+        """Begin an enrollment session for a new user."""
+        data = request.json or {}
+        name = data.get("name", "").strip()
+        if not name:
+            return jsonify({"error": "Name is required"}), 400
+        # Store name in a session variable
+        app._enroll_session = {"name": name, "samples": 0, "required": 5}
+        return jsonify({"message": f"Ready to enroll {name}. Record 5 voice samples.",
+                        "required": 5, "name": name})
+
+    @app.post("/api/enroll/sample")
+    def enroll_sample():
+        """Record and submit one voice sample (base64 WAV audio from dashboard)."""
+        import base64, io, numpy as np
+        if not enroller:
+            return jsonify({"error": "Enrollment system not ready"}), 503
+
+        session = getattr(app, "_enroll_session", None)
+        if not session:
+            return jsonify({"error": "Start enrollment first via /api/enroll/start"}), 400
+
+        data = request.json or {}
+        audio_b64 = data.get("audio_b64", "")
+        name = session["name"]
+
+        if not audio_b64:
+            return jsonify({"error": "No audio data provided"}), 400
+
+        try:
+            import soundfile as sf
+            raw = base64.b64decode(audio_b64)
+            buf = io.BytesIO(raw)
+            audio, sr = sf.read(buf)
+            # Resample to 16kHz if needed
+            if sr != 16000:
+                import librosa
+                audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
+            audio = audio.astype(np.float32)
+
+            result = enroller.add_sample_api(name, audio)
+            session["samples"] = result["count"]
+
+            if result["done"]:
+                app._enroll_session = None
+                socketio.emit("enrollment_complete", {"name": name})
+
+            return jsonify(result)
+        except Exception as e:
+            log.error(f"Enrollment sample error: {e}")
+            return jsonify({"error": str(e)}), 500
+
+    @app.delete("/api/history")
+    def clear_history():
+        """Clear conversation history for a speaker."""
+        speaker = request.args.get("speaker")
+        if memory:
+            memory.clear_history(speaker)
+        return jsonify({"message": "History cleared"})
+
     @app.get("/api/documents")
     def list_documents():
         from pathlib import Path
         docs_dir = Path(__file__).parents[2] / "data" / "documents"
+        docs_dir.mkdir(parents=True, exist_ok=True)
         files = sorted(docs_dir.iterdir(), key=lambda f: f.stat().st_mtime, reverse=True)
         return jsonify([{"name": f.name, "path": str(f), "size": f.stat().st_size}
                         for f in files if f.is_file()][:20])
 
     @app.post("/api/phone/connect")
     def connect_phone():
+        if not hasattr(app, "dispatcher") or not app.dispatcher:
+            return jsonify({"message": "Dispatcher not ready — backend still loading"}), 503
         data = request.json or {}
         ip   = data.get("ip", "")
         if not ip:
@@ -137,6 +201,8 @@ def create_app(brain=None, memory=None, tts=None,
 
     @app.get("/api/phone/status")
     def phone_status():
+        if not hasattr(app, "dispatcher") or not app.dispatcher:
+            return jsonify({"connected": False, "ip": None, "battery": "N/A"})
         phone = app.dispatcher.phone
         return jsonify({
             "connected": phone.is_connected(),
