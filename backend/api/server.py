@@ -210,30 +210,77 @@ def create_app(brain=None, memory=None, tts=None,
             "battery":   phone.battery_status() if phone.is_connected() else "N/A",
         })
 
+    @app.get("/api/logs")
+    def action_logs():
+        """Return recent action log for settings/debug page."""
+        if not memory:
+            return jsonify([])
+        try:
+            c = memory.conn.cursor()
+            rows = c.execute(
+                "SELECT timestamp, speaker, action, params, result "
+                "FROM action_log ORDER BY id DESC LIMIT 30"
+            ).fetchall()
+            return jsonify([
+                {"timestamp": r[0], "speaker": r[1], "action": r[2],
+                 "params": r[3], "result": r[4]} for r in rows
+            ])
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.get("/api/system/info")
+    def system_info():
+        """Return basic PC stats (CPU, RAM, disk)."""
+        try:
+            import psutil, platform
+            return jsonify({
+                "os":        platform.system() + " " + platform.release(),
+                "cpu":       f"{psutil.cpu_percent(interval=0.5):.0f}%",
+                "ram":       f"{psutil.virtual_memory().percent:.0f}%",
+                "ram_gb":    f"{psutil.virtual_memory().used / 1e9:.1f} / {psutil.virtual_memory().total / 1e9:.1f} GB",
+                "disk":      f"{psutil.disk_usage('/').percent:.0f}%",
+                "model":     brain.model if brain else "loading…",
+            })
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
     # ── SocketIO Events ───────────────────────────────────────────────────────
 
     @socketio.on("connect")
     def on_connect():
         log.info("🔌 Dashboard connected")
-        emit("server_ready", {"message": "Ayo AI is ready."})
+        model_name = brain.model if brain else None
+        emit("server_ready", {
+            "message":     "Ayo AI is ready." if model_name else "Ayo connected — AI model still loading.",
+            "model":       model_name,
+            "model_ready": bool(model_name),
+        })
 
     @socketio.on("text_command")
     def on_text_command(data):
         """Dashboard sent a typed command."""
         text    = data.get("text", "")
         speaker = data.get("speaker", "User")
-        if text and brain:
-            response = brain.think(text, speaker=speaker)
-            if response.get("action"):
-                result = app.dispatcher.dispatch(
-                    response["action"], response.get("params", {}), speaker
-                )
-                if result:
-                    response["text"] += f"\n\n{result}"
-            emit("ayo_response", response, broadcast=True)
-            if tts:
-                import threading
-                threading.Thread(target=tts.speak,
-                                 args=(response["text"],), daemon=True).start()
+        if not text:
+            return
+        if not brain or not brain.model:
+            emit("ayo_response", {
+                "text": "My AI model is still loading. Please wait.",
+                "action": None, "params": {}
+            })
+            return
+        response = brain.think(text, speaker=speaker)
+        if response.get("action") and hasattr(app, "dispatcher"):
+            result = app.dispatcher.dispatch(
+                response["action"], response.get("params", {}), speaker
+            )
+            if result:
+                response["text"] += f"\n\n{result}"
+        emit("ayo_response", response, broadcast=True)
+        if tts:
+            import threading
+            threading.Thread(target=tts.speak,
+                             args=(response["text"],), daemon=True).start()
 
     return app
+

@@ -138,11 +138,51 @@ function setupNavigation() {
       document.getElementById(`page-${page}`).classList.add("active");
 
       // Load data for relevant pages
-      if (page === "voices") loadUsers();
-      if (page === "docs")   loadDocuments();
-      if (page === "phone")  refreshPhoneStatus();
+      if (page === "voices")   loadUsers();
+      if (page === "docs")     loadDocuments();
+      if (page === "phone")    refreshPhoneStatus();
+      if (page === "settings") { loadSystemInfo(); loadActivityLog(); }
     });
   });
+}
+
+// ── Settings Page ─────────────────────────────────────────────────────────────
+
+async function loadSystemInfo() {
+  try {
+    const res  = await fetch(`${apiBase}/api/system/info`, { signal: AbortSignal.timeout(4000) });
+    const data = await res.json();
+    document.getElementById("sysCpu").textContent  = data.cpu  || "—";
+    document.getElementById("sysRam").textContent  = data.ram_gb || "—";
+    document.getElementById("sysDisk").textContent = data.disk || "—";
+    document.getElementById("sysOs").textContent   = data.os   || "—";
+    document.getElementById("sysModel").textContent = data.model || "loading…";
+  } catch {
+    document.getElementById("sysCpu").textContent = "offline";
+  }
+  document.getElementById("refreshSysBtn")?.addEventListener("click", loadSystemInfo);
+}
+
+async function loadActivityLog() {
+  try {
+    const res  = await fetch(`${apiBase}/api/logs`, { signal: AbortSignal.timeout(4000) });
+    const logs = await res.json();
+    const el   = document.getElementById("activityLog");
+    if (!logs.length) {
+      el.innerHTML = '<div class="loading-text">No activity yet.</div>';
+      return;
+    }
+    el.innerHTML = logs.map(l => {
+      const t = new Date(l.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg-elevated);border-radius:8px;font-size:12px">
+        <span style="color:var(--purple-400);font-weight:600">${l.action}</span>
+        <span style="color:var(--text-secondary)">${l.speaker}</span>
+        <span style="color:var(--text-muted)">${t}</span>
+      </div>`;
+    }).join("");
+  } catch {
+    document.getElementById("activityLog").innerHTML = '<div class="loading-text">Could not load activity.</div>';
+  }
 }
 
 // ── Titlebar ──────────────────────────────────────────────────────────────────

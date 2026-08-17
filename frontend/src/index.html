@@ -250,6 +250,17 @@
       </div>
       <div class="settings-grid">
         <div class="card">
+          <h3>🖥️ System Stats</h3>
+          <div id="sysStats" class="status-row-list">
+            <div class="status-row"><span>CPU</span><span id="sysCpu">—</span></div>
+            <div class="status-row"><span>RAM</span><span id="sysRam">—</span></div>
+            <div class="status-row"><span>Disk</span><span id="sysDisk">—</span></div>
+            <div class="status-row"><span>OS</span><span id="sysOs" style="font-size:11px">—</span></div>
+            <div class="status-row"><span>AI Model</span><span id="sysModel" style="font-size:11px;color:var(--cyan-400)">—</span></div>
+          </div>
+          <button class="btn-secondary" id="refreshSysBtn" style="margin-top:4px">Refresh</button>
+        </div>
+        <div class="card">
           <h3>🤖 AI Model</h3>
           <label>Ollama Model</label>
           <select class="input-field" id="ollamaModel">
@@ -274,12 +285,18 @@
           <div class="hotkey-row"><span>Show/Hide Dashboard</span><kbd>Ctrl+Shift+A</kbd></div>
           <div class="hotkey-row"><span>Quick Command</span><kbd>Ctrl+Space</kbd></div>
         </div>
+        <div class="card" style="grid-column:1/-1">
+          <h3>📋 Recent Activity Log</h3>
+          <div id="activityLog" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto">
+            <div class="loading-text">Loading activity…</div>
+          </div>
+        </div>
         <div class="card">
           <h3>ℹ️ About Ayo AI</h3>
           <p>Version 1.0.0</p>
           <p>By <strong>Major Marshall</strong></p>
           <p>100% offline — powered by Ollama + Whisper</p>
-          <a href="#" id="openGithub" class="btn-secondary">View on GitHub</a>
+          <a href="https://github.com/majormarshall/ayo-ai" target="_blank" id="openGithub" class="btn-secondary">View on GitHub</a>
         </div>
       </div>
     </section>
