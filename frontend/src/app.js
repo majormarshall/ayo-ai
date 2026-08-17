@@ -65,13 +65,55 @@ function connectSocket() {
 
 async function checkStatus() {
   try {
-    const res  = await fetch(`${apiBase}/api/status`);
+    const res  = await fetch(`${apiBase}/api/status`, { signal: AbortSignal.timeout(3000) });
     const data = await res.json();
     setStatus("Ayo is ready", true);
     document.getElementById("modelName").textContent = data.model || "Ollama";
+    hideOfflineBanner();
+    // Also fetch available models for the settings dropdown
+    loadAvailableModels();
   } catch {
     setStatus("Backend offline", false);
+    showOfflineBanner();
   }
+}
+
+function showOfflineBanner() {
+  let banner = document.getElementById("offlineBanner");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "offlineBanner";
+    banner.style.cssText = `
+      position: fixed; top: 38px; left: 0; right: 0; z-index: 900;
+      background: rgba(239,68,68,0.15); border-bottom: 1px solid rgba(239,68,68,0.3);
+      color: #EF4444; text-align: center; padding: 8px 16px; font-size: 0.82rem;
+      font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 8px;
+    `;
+    banner.innerHTML = `
+      <span>Backend offline — run <code style="background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:4px">python main.py --no-enroll</code> to start Ayo</span>
+      <button onclick="checkStatus()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.4);color:#EF4444;padding:2px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem">Retry</button>
+    `;
+    document.body.appendChild(banner);
+  }
+  banner.style.display = "flex";
+}
+
+function hideOfflineBanner() {
+  const banner = document.getElementById("offlineBanner");
+  if (banner) banner.style.display = "none";
+}
+
+async function loadAvailableModels() {
+  try {
+    const res = await fetch(`${apiBase}/api/models`, { signal: AbortSignal.timeout(3000) });
+    const data = await res.json();
+    const select = document.getElementById("ollamaModel");
+    if (data.models && data.models.length > 0) {
+      select.innerHTML = data.models.map(m =>
+        `<option value="${m}" ${m === data.active ? 'selected' : ''}>${m}</option>`
+      ).join("");
+    }
+  } catch {}
 }
 
 function setStatus(text, online) {

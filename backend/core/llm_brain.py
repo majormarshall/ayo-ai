@@ -54,19 +54,22 @@ class LLMBrain:
         log.info(f"🧠 LLM Brain ready → model: {self.model}")
 
     def _verify_model(self):
-        """Check Ollama is running and model exists; pull if missing."""
+        """Check Ollama is running and pick best available model. Never blocks."""
         try:
             models = [m.model for m in ollama.list().models]
             # Try preferred models in order
-            for candidate in [self.model, "mistral", "phi3", "llama3"]:
+            for candidate in [self.model, "llama3.2", "llama3.2:3b", "mistral", "phi3", "llama3", "gemma2"]:
                 if any(candidate in m for m in models):
-                    self.model = candidate
+                    self.model = next(m for m in models if candidate in m)
+                    log.info(f"Using model: {self.model}")
                     return
-            # Nothing found — pull the default
-            log.warning(f"Model '{self.model}' not found. Pulling llama3.2…")
-            ollama.pull("llama3.2")
+            # No model found — run in degraded mode (don't auto-pull, could take hours)
+            log.warning("No Ollama model found. Run: ollama pull llama3.2:3b")
+            log.warning("Ayo will respond with a 'loading' message until a model is available.")
+            self.model = None
         except Exception as e:
             log.error(f"Ollama not reachable: {e}. Make sure 'ollama serve' is running.")
+            self.model = None
 
     def think(self, user_text: str, speaker: str = "User",
               history: Optional[list] = None) -> dict:
@@ -74,6 +77,15 @@ class LLMBrain:
         Send user message to Ollama. Returns structured response dict:
         { "text": str, "action": str|None, "params": dict }
         """
+        if not self.model:
+            # Try to find a model again in case it finished downloading
+            self._verify_model()
+        if not self.model:
+            return {
+                "text": "My AI model is still loading. Run 'ollama pull llama3.2:3b' in a terminal if it's not already downloading.",
+                "action": None, "params": {}, "speaker": speaker
+            }
+
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
         # Add conversation history for context

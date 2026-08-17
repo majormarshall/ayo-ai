@@ -86,19 +86,23 @@ function createWindow() {
 // ── System Tray ───────────────────────────────────────────────────────────────
 
 function createTray() {
-  const iconPath = path.join(__dirname, "..", "src", "assets", "ayo-tray.png");
-  tray = new Tray(iconPath);
-  tray.setToolTip("Ayo AI — Always Listening");
+  try {
+    const iconPath = path.join(__dirname, "..", "src", "assets", "ayo-tray.png");
+    tray = new Tray(iconPath);
+    tray.setToolTip("Ayo AI — Always Listening");
 
-  const menu = Menu.buildFromTemplate([
-    { label: "Open Ayo Dashboard", click: () => { mainWindow.show(); mainWindow.focus(); } },
-    { label: "Pause Listening",    click: () => { /* TODO: pause wake detector */ } },
-    { type:  "separator" },
-    { label: "Exit Ayo AI",        click: () => { app.quit(); } },
-  ]);
+    const menu = Menu.buildFromTemplate([
+      { label: "Open Ayo Dashboard", click: () => { mainWindow.show(); mainWindow.focus(); } },
+      { label: "Pause Listening",    click: () => { /* TODO: pause wake detector */ } },
+      { type:  "separator" },
+      { label: "Exit Ayo AI",        click: () => { app.quit(); } },
+    ]);
 
-  tray.setContextMenu(menu);
-  tray.on("double-click", () => { mainWindow.show(); mainWindow.focus(); });
+    tray.setContextMenu(menu);
+    tray.on("double-click", () => { mainWindow.show(); mainWindow.focus(); });
+  } catch (e) {
+    console.warn("Tray icon not found, skipping system tray:", e.message);
+  }
 }
 
 // ── IPC Handlers (renderer ↔ main) ───────────────────────────────────────────

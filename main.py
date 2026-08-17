@@ -105,7 +105,8 @@ def main():
                      verifier=verifier, enroller=enroller)
     log.info("🌐 API server starting on http://localhost:5050")
     log.info("📊 Open the Electron dashboard: npm start")
-    socketio.run(app, host="127.0.0.1", port=5050, debug=False, log_output=False)
+    socketio.run(app, host="127.0.0.1", port=5050, debug=False,
+                 log_output=False, allow_unsafe_werkzeug=True, use_reloader=False)
 
 
 if __name__ == "__main__":

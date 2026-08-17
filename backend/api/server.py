@@ -13,7 +13,7 @@ from flask_cors import CORS
 
 log = logging.getLogger("ayo.api")
 
-socketio = SocketIO(cors_allowed_origins="*", async_mode="eventlet")
+socketio = SocketIO(cors_allowed_origins="*", async_mode="threading")
 
 
 def create_app(brain=None, memory=None, tts=None,
@@ -62,6 +62,15 @@ def create_app(brain=None, memory=None, tts=None,
         if not text:
             return jsonify({"error": "No text provided"}), 400
 
+        # Graceful degradation — brain not loaded yet
+        if not brain:
+            msg = "I'm still loading my AI model. Please wait a moment and try again."
+            if memory:
+                memory.add_message(speaker, "user", text)
+                memory.add_message(speaker, "assistant", msg)
+            socketio.emit("ayo_response", {"text": msg, "action": None, "params": {}})
+            return jsonify({"text": msg, "action": None, "params": {}})
+
         if memory:
             memory.add_message(speaker, "user", text)
 
@@ -70,7 +79,7 @@ def create_app(brain=None, memory=None, tts=None,
 
         # Execute action if any
         result = ""
-        if response.get("action"):
+        if response.get("action") and hasattr(app, 'dispatcher'):
             result = app.dispatcher.dispatch(
                 response["action"], response.get("params", {}), speaker
             )
@@ -86,6 +95,16 @@ def create_app(brain=None, memory=None, tts=None,
 
         socketio.emit("ayo_response", response)
         return jsonify(response)
+
+    @app.get("/api/models")
+    def list_models():
+        """List available Ollama models."""
+        try:
+            import ollama
+            models = [m.model for m in ollama.list().models]
+            return jsonify({"models": models, "active": brain.model if brain else None})
+        except Exception as e:
+            return jsonify({"models": [], "active": None, "error": str(e)})
 
     @app.get("/api/users")
     def list_users():
